@@ -1,0 +1,1 @@
+# isitwokeornot-tampermonkey-companion
