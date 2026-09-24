@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
-// @version      2.1.0
+// @version      2.2.0
 // @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the WokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
@@ -52,8 +52,11 @@
 
   const STORAGE_KEYS = {
     CONFIG: 'wsrConfig',
-    ID_CACHE: 'wsrIdCache'
+    ID_CACHE: 'wsrIdCache',
+    SEERR_SCORE_CACHE: 'wsrSeerrScoreCache'
   };
+
+  const SEERR_SCORE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   /** @type {ScriptConfig} */
   const DEFAULT_CONFIG = {
@@ -1108,6 +1111,70 @@
     value.textContent = state.type === 'score' ? `${state.score}%` : (state.message || '…');
   }
 
+  /**
+   * Caches resolved (and "no match found") Woke Scores per title, keyed by
+   * `mediaType:tmdbId`, so revisiting a title doesn't re-query WokeOrNot
+   * every time. Entries expire after SEERR_SCORE_CACHE_TTL_MS.
+   */
+  const seerrScoreCache = {
+    read() {
+      try {
+        return JSON.parse(GM_getValue(STORAGE_KEYS.SEERR_SCORE_CACHE, '{}'));
+      } catch (err) {
+        return {};
+      }
+    },
+
+    write(entries) {
+      GM_setValue(STORAGE_KEYS.SEERR_SCORE_CACHE, JSON.stringify(entries));
+    },
+
+    /** @returns {({found:boolean, score?:number, url:string}|null)} */
+    get(key) {
+      const entry = this.read()[key];
+      if (!entry) return null;
+      if (Date.now() - entry.timestamp > SEERR_SCORE_CACHE_TTL_MS) return null;
+      return entry;
+    },
+
+    set(key, value) {
+      const entries = this.read();
+      // Drop expired entries opportunistically so storage doesn't grow forever.
+      for (const [k, v] of Object.entries(entries)) {
+        if (Date.now() - v.timestamp > SEERR_SCORE_CACHE_TTL_MS) delete entries[k];
+      }
+      entries[key] = { ...value, timestamp: Date.now() };
+      this.write(entries);
+    },
+
+    clear() {
+      this.write({});
+    }
+  };
+
+  // The Navigation Timing API can tell us this page load was a reload
+  // (F5/Ctrl+F5/Cmd+R) rather than an SPA route change or a fresh visit, but
+  // it cannot tell a normal reload apart from a cache-busting hard reload —
+  // no standard web API exposes that distinction. Treating every reload as a
+  // "please refresh" signal is a deliberate, user-requested trade-off: it
+  // bypasses the cache a little more often than strictly necessary, but
+  // never serves stale data past a reload. The flag is consumed once, for
+  // whichever title is showing right after the reload; titles visited via
+  // later SPA navigation in the same tab use the cache normally again.
+  let seerrReloadBypassAvailable = (() => {
+    try {
+      return performance.getEntriesByType('navigation')[0]?.type === 'reload';
+    } catch (err) {
+      return false;
+    }
+  })();
+
+  function consumeSeerrReloadBypass() {
+    if (!seerrReloadBypassAvailable) return false;
+    seerrReloadBypassAvailable = false;
+    return true;
+  }
+
   let seerrLastKey = null;
   // Path currently being resolved. Guards against the duplicate-row bug seen
   // on a slow/cold page load (e.g. Ctrl+F5): before `ratingsRow` is found and
@@ -1132,8 +1199,23 @@
     }
 
     document.querySelectorAll(SELECTORS.SCORE_ROW).forEach((el) => el.remove());
-    seerrPendingKey = key;
     seerrLastKey = key;
+
+    const cacheKey = `${route.mediaType}:${route.tmdbId}`;
+    const cached = consumeSeerrReloadBypass() ? null : seerrScoreCache.get(cacheKey);
+    if (cached) {
+      log('Using cached Woke Score for', cacheKey, cached);
+      const refs = buildSeerrScoreRow();
+      if (cached.found) {
+        setSeerrRowState(refs, { type: 'score', score: cached.score }, cached.url);
+      } else {
+        setSeerrRowState(refs, { type: 'error', message: 'No match found' }, cached.url);
+      }
+      ratingsRow.insertAdjacentElement('afterend', refs.row);
+      return;
+    }
+
+    seerrPendingKey = key;
 
     try {
       const meta = await fetchSeerrMediaMeta(route.mediaType, route.tmdbId);
@@ -1155,9 +1237,11 @@
 
       if (result) {
         setSeerrRowState(refs, { type: 'score', score: result.score }, result.url);
+        seerrScoreCache.set(cacheKey, { found: true, score: result.score, url: result.url });
         log('Score:', result.score, '%', result.url);
       } else {
         setSeerrRowState(refs, { type: 'error', message: 'No match found' }, fallbackSearchUrl);
+        seerrScoreCache.set(cacheKey, { found: false, url: fallbackSearchUrl });
       }
     } finally {
       if (seerrPendingKey === key) seerrPendingKey = null;
@@ -1205,6 +1289,12 @@
       GM_registerMenuCommand('🗑️ Clear id cache', () => {
         idCache.clear();
         showToast('Cache cleared.');
+      });
+    }
+    if (onSeerr) {
+      GM_registerMenuCommand('🗑️ Clear Woke Score cache', () => {
+        seerrScoreCache.clear();
+        showToast('Woke Score cache cleared.');
       });
     }
 

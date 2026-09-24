@@ -22,6 +22,7 @@ Both sides share a single configuration.
 - Adds a **Woke Score** row next to the other ratings (TMDB, IMDb, Rotten Tomatoes, …) on a title's page, showing the isitwokeornot.com score and linking to the matching review.
 - Looks the title up on isitwokeornot.com using its original title first (falling back to Seerr's display title), and cross-checks the IMDb id when available, so localized/translated titles in Seerr still resolve to the correct review instead of a false match.
 - Colour-coded (green/amber/red) at a glance, based on the score.
+- Results (including "no match found") are cached per title for 7 days, so revisiting or browsing back to a title doesn't re-query isitwokeornot.com every time. A page reload (F5/Ctrl+F5/Cmd+R) always fetches a fresh result for the title shown right after the reload — see [Woke Score caching](#woke-score-caching) below.
 
 ### Shared
 
@@ -62,6 +63,14 @@ Settings are stored locally via Tampermonkey's `GM_setValue`/`GM_getValue` stora
 **On your Seerr instance:**
 - The title's TMDB id is read straight from Seerr's own URL, then its original title, display title, and IMDb id are fetched from Seerr's local API (using your existing, already-authenticated browser session — no separate credentials needed).
 - The script searches isitwokeornot.com for each title candidate (original title first) until it finds a result whose IMDb id matches (when known), then extracts the score from that page and renders the Woke Score row.
+
+### Woke Score caching
+
+Every resolved score (and every "no match found" result) is cached locally per `mediaType:tmdbId`, using Tampermonkey's `GM_setValue`/`GM_getValue` storage, for **7 days**. Revisiting a title, or navigating back to it while browsing, reads from this cache instead of hitting isitwokeornot.com again.
+
+The cache is bypassed once per **page reload** (F5, Ctrl+F5, Cmd+R, the browser's reload button, …), for whichever title happens to be showing right after that reload — that one gets a fresh lookup, and every other title visited afterwards in the same tab (via Seerr's normal in-app navigation) uses the cache again. There's no standard web API that lets a script tell a cache-busting hard reload (Ctrl+F5) apart from a normal one (F5); bypassing the cache on any reload is a deliberate trade-off that favours fresher-than-needed data over stale data.
+
+To clear the cache immediately, use the Tampermonkey menu command **"🗑️ Clear Woke Score cache"** (shown while on your Seerr instance).
 
 ### Why `@match *://*/*`?
 
