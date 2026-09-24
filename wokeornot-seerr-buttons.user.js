@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
-// @version      2.2.2
+// @version      2.3.0
 // @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the WokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
@@ -1054,10 +1054,15 @@
     return null;
   }
 
+  // WokeOrNot's own 5-tier scale and colours, as published by the site itself:
+  // https://x.com/isitwokeornot/status/2101297772695548255
+  // https://x.com/isitwokeornot/status/2101355135339315241
   function seerrColorForScore(score) {
-    if (score <= 33) return { bg: '#ecfdf5', fg: '#047857' }; // green
-    if (score <= 66) return { bg: '#fffbeb', fg: '#b45309' }; // amber
-    return { bg: '#fff1f2', fg: '#be123c' };                  // red
+    if (score <= 19) return { bg: '#f0fdf4', fg: '#15803d' }; // 0-19   Not woke      (green)
+    if (score <= 39) return { bg: '#f7fee7', fg: '#4d7c0f' }; // 20-39  Slightly woke  (lime)
+    if (score <= 59) return { bg: '#fffbeb', fg: '#b45309' }; // 40-59  Woke           (amber)
+    if (score <= 79) return { bg: '#fff7ed', fg: '#c2410c' }; // 60-79  Very woke      (orange)
+    return { bg: '#fff1f2', fg: '#be123c' };                  // 80-100 Super woke     (rose)
   }
   const SEERR_NEUTRAL_COLOR = { bg: 'transparent', fg: 'inherit' };
 

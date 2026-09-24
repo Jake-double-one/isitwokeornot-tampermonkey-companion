@@ -21,7 +21,7 @@ Both sides share a single configuration.
 
 - Adds a **Woke Score** row next to the other ratings (TMDB, IMDb, Rotten Tomatoes, …) on a title's page, showing the isitwokeornot.com score and linking to the matching review.
 - Looks the title up on isitwokeornot.com using its original title first (falling back to Seerr's display title), and cross-checks the IMDb id when available, so localized/translated titles in Seerr still resolve to the correct review instead of a false match.
-- Colour-coded (green/amber/red) at a glance, based on the score.
+- Colour-coded using WokeOrNot's own 5-tier scale, matching their site: 0–19% Not woke (green), 20–39% Slightly woke (lime), 40–59% Woke (amber), 60–79% Very woke (orange), 80–100% Super woke (rose).
 - Results (including "no match found") are cached per title for 7 days, so revisiting or browsing back to a title doesn't re-query isitwokeornot.com every time. A page reload (F5/Ctrl+F5/Cmd+R) always fetches a fresh result for the title shown right after the reload — see [Woke Score caching](#woke-score-caching) below.
 
 ### Shared
