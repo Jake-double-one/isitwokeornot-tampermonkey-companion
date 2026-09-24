@@ -82,6 +82,6 @@ Targets `isitwokeornot.com` and your configured Seerr instance. The script relie
 
 ## License
 
-Released under the [MIT License](./LICENSE). This script has no third-party dependencies; it only uses the standard Tampermonkey/Greasemonkey `GM_*` APIs (`GM_getValue`, `GM_setValue`, `GM_registerMenuCommand`, `GM_xmlhttpRequest`, `GM_addStyle`) provided by the userscript manager. The embedded icon is the isitwokeornot.com logo, used solely to label the Woke Score row it displays inside Seerr.
+Released under the [MIT License](./LICENSE). This script has no third-party dependencies; it only uses the standard Tampermonkey/Greasemonkey `GM_*` APIs (`GM_getValue`, `GM_setValue`, `GM_registerMenuCommand`, `GM_xmlhttpRequest`, `GM_addStyle`) provided by the userscript manager. The Woke Score row's icon is a small inline SVG "W" badge, not any third-party artwork.
 
 isitwokeornot.com, Seerr/Overseerr/Jellyseerr, Radarr, and Sonarr are trademarks of their respective owners. This project is an independent, unofficial companion script and is not affiliated with any of them.
