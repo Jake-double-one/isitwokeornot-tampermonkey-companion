@@ -23,6 +23,7 @@ Both sides share a single configuration.
 - Looks the title up on isitwokeornot.com using its original title first (falling back to Seerr's display title), and cross-checks the IMDb id when available, so localized/translated titles in Seerr still resolve to the correct review instead of a false match.
 - Colour-coded using WokeOrNot's own 5-tier scale, matching their site: 0–19% Not woke (green), 20–39% Slightly woke (lime), 40–59% Woke (amber), 60–79% Very woke (orange), 80–100% Super woke (rose).
 - Results (including "no match found") are cached per title for 7 days, so revisiting or browsing back to a title doesn't re-query isitwokeornot.com every time. A page reload (F5/Ctrl+F5/Cmd+R) always fetches a fresh result for the title shown right after the reload — see [Woke Score caching](#woke-score-caching) below.
+- Clicking the row's link to open the review on isitwokeornot.com adds UTM tracking parameters — see [UTM parameters on the Woke Score link](#utm-parameters-on-the-woke-score-link) below.
 
 ### Shared
 
@@ -76,6 +77,16 @@ Every resolved score (and every "no match found" result) is cached locally per `
 The cache is bypassed once per **page reload** (F5, Ctrl+F5, Cmd+R, the browser's reload button, …), for whichever title happens to be showing right after that reload — that one gets a fresh lookup, and every other title visited afterwards in the same tab (via Seerr's normal in-app navigation) uses the cache again. There's no standard web API that lets a script tell a cache-busting hard reload (Ctrl+F5) apart from a normal one (F5); bypassing the cache on any reload is a deliberate trade-off that favours fresher-than-needed data over stale data.
 
 To clear the cache immediately, use the Tampermonkey menu command **"🗑️ Clear Woke Score cache"** (shown while on your Seerr instance).
+
+### UTM parameters on the Woke Score link
+
+The Woke Score row's link to isitwokeornot.com (both while it's still loading and once a score is found) has these query parameters appended:
+
+```
+?utm_source=seerr-tampermonkey&utm_medium=referral&utm_campaign=media-fact
+```
+
+This is standard [UTM tracking](https://en.wikipedia.org/wiki/UTM_parameters): it tells isitwokeornot.com's own analytics that the visit came from this script, rather than from a regular link or search result — the same mechanism virtually every site uses to see where its traffic comes from. It's added client-side only, to that one outbound link; it does not change what's requested, does not add tracking anywhere else in the script, and carries no personal data — just those three fixed, constant values. If you'd rather not send it, strip the query string after following the link, or remove the `withUtmParams()` call in the script's source.
 
 ### Why does the Seerr row need an extra `@match` line?
 
