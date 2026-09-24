@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
-// @version      2.0.0
+// @version      2.1.0
 // @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the WokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
@@ -182,6 +182,34 @@
     btn.textContent = label;
     if (onClick) btn.addEventListener('click', onClick);
     return btn;
+  }
+
+  /**
+   * Wires up a "click once to arm, click again to confirm" pattern on a
+   * button, so a single accidental click can never trigger `onConfirmed`.
+   * The button's label switches to `confirmLabel` after the first click and
+   * reverts to `originalLabel` automatically if not confirmed in time.
+   */
+  function armConfirmClick(buttonEl, { originalLabel, confirmLabel, confirmClassName, timeoutMs = 4000, onConfirmed }) {
+    let confirmTimer = null;
+
+    function reset() {
+      clearTimeout(confirmTimer);
+      confirmTimer = null;
+      buttonEl.classList.remove(confirmClassName);
+      buttonEl.textContent = originalLabel;
+    }
+
+    buttonEl.addEventListener('click', () => {
+      if (confirmTimer) {
+        reset();
+        onConfirmed();
+        return;
+      }
+      buttonEl.classList.add(confirmClassName);
+      buttonEl.textContent = confirmLabel;
+      confirmTimer = setTimeout(reset, timeoutMs);
+    });
   }
 
   /* =========================================================================
@@ -473,6 +501,7 @@
       .wsr-detail-btn.wsr-arr-movie { background: #ffc230; color: #111; }
       .wsr-detail-btn.wsr-arr-tv    { background: #2e6da4; }
       .wsr-detail-btn.wsr-request   { background: #059669; }
+      .wsr-detail-btn.wsr-request.wsr-confirm { background: #dc2626; }
       .wsr-detail-btn[disabled] { opacity: .5; cursor: not-allowed; pointer-events: none; }
     `);
   }
@@ -749,11 +778,17 @@
     }
 
     if (config.seerrUrl && config.seerrApiKey && ids.tmdbId) {
+      const requestLabel = '⚡ Request in Seerr now';
       const requestBtn = createButton({
         className: 'wsr-detail-btn wsr-request',
-        label: '⚡ Request in Seerr now'
+        label: requestLabel
       });
-      requestBtn.addEventListener('click', () => requestInSeerr(config, mediaType, ids.tmdbId, requestBtn));
+      armConfirmClick(requestBtn, {
+        originalLabel: requestLabel,
+        confirmLabel: '❓ Really? Click to confirm',
+        confirmClassName: 'wsr-confirm',
+        onConfirmed: () => requestInSeerr(config, mediaType, ids.tmdbId, requestBtn)
+      });
       wrap.appendChild(requestBtn);
     }
 
@@ -1074,15 +1109,21 @@
   }
 
   let seerrLastKey = null;
+  // Path currently being resolved. Guards against the duplicate-row bug seen
+  // on a slow/cold page load (e.g. Ctrl+F5): before `ratingsRow` is found and
+  // this fetch is started, several MutationObserver bursts can each pass the
+  // "no row yet, no lock yet" check while the FIRST run is still awaiting its
+  // network calls, each starting its own fetch and inserting its own row.
+  // Setting this synchronously, before any `await`, closes that window.
+  let seerrPendingKey = null;
 
   async function runSeerrWokeScoreRow() {
     const route = getSeerrRouteInfo();
     if (!route) return;
 
     const key = location.pathname;
+    if (key === seerrPendingKey) return; // already resolving this title
     if (key === seerrLastKey && document.querySelector(SELECTORS.SCORE_ROW)) return;
-
-    document.querySelectorAll(SELECTORS.SCORE_ROW).forEach((el) => el.remove());
 
     const ratingsRow = document.querySelector('.media-ratings');
     if (!ratingsRow) {
@@ -1090,26 +1131,36 @@
       return;
     }
 
+    document.querySelectorAll(SELECTORS.SCORE_ROW).forEach((el) => el.remove());
+    seerrPendingKey = key;
     seerrLastKey = key;
 
-    const meta = await fetchSeerrMediaMeta(route.mediaType, route.tmdbId);
-    const fallbackTitle = getFallbackTitleFromDom();
-    const titleCandidates = meta ? [meta.originalTitle, meta.displayTitle, fallbackTitle] : [fallbackTitle];
-    log('Route:', route, '| candidates:', titleCandidates);
+    try {
+      const meta = await fetchSeerrMediaMeta(route.mediaType, route.tmdbId);
+      if (location.pathname !== key) return; // navigated away while fetching
 
-    const wokeType = WOKE_TYPE_FOR_MEDIA[route.mediaType];
-    const fallbackSearchUrl = `${WOKEORNOT_ORIGIN}/search?q=${encodeURIComponent(titleCandidates[0] || '')}&type=${wokeType}`;
+      const fallbackTitle = getFallbackTitleFromDom();
+      const titleCandidates = meta ? [meta.originalTitle, meta.displayTitle, fallbackTitle] : [fallbackTitle];
+      log('Route:', route, '| candidates:', titleCandidates);
 
-    const refs = buildSeerrScoreRow();
-    setSeerrRowState(refs, { type: 'pending' }, fallbackSearchUrl);
-    ratingsRow.insertAdjacentElement('afterend', refs.row);
+      const wokeType = WOKE_TYPE_FOR_MEDIA[route.mediaType];
+      const fallbackSearchUrl = `${WOKEORNOT_ORIGIN}/search?q=${encodeURIComponent(titleCandidates[0] || '')}&type=${wokeType}`;
 
-    const result = await resolveWokeScore(route.mediaType, titleCandidates, meta?.imdbId || null);
-    if (result) {
-      setSeerrRowState(refs, { type: 'score', score: result.score }, result.url);
-      log('Score:', result.score, '%', result.url);
-    } else {
-      setSeerrRowState(refs, { type: 'error', message: 'No match found' }, fallbackSearchUrl);
+      const refs = buildSeerrScoreRow();
+      setSeerrRowState(refs, { type: 'pending' }, fallbackSearchUrl);
+      ratingsRow.insertAdjacentElement('afterend', refs.row);
+
+      const result = await resolveWokeScore(route.mediaType, titleCandidates, meta?.imdbId || null);
+      if (location.pathname !== key) return; // navigated away while fetching
+
+      if (result) {
+        setSeerrRowState(refs, { type: 'score', score: result.score }, result.url);
+        log('Score:', result.score, '%', result.url);
+      } else {
+        setSeerrRowState(refs, { type: 'error', message: 'No match found' }, fallbackSearchUrl);
+      }
+    } finally {
+      if (seerrPendingKey === key) seerrPendingKey = null;
     }
   }
 
