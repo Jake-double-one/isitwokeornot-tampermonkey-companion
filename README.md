@@ -34,11 +34,11 @@ Both sides share a single configuration.
 1. Install a userscript manager, e.g. [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Edge, Safari) or [Violentmonkey](https://violentmonkey.github.io/).
 2. Open [`wokeornot-seerr-buttons.user.js`](./wokeornot-seerr-buttons.user.js) in this repository and click **Raw** — your userscript manager should pick it up and offer to install it. Alternatively, copy the file's contents into a new userscript.
 3. Visit [isitwokeornot.com](https://isitwokeornot.com/) and click the ⚙️ button in the bottom-right corner (or use the Tampermonkey menu) to configure your Seerr/Radarr/Sonarr URLs.
-4. **Optional, for the Seerr-side Woke Score row only:** open the script in the Tampermonkey dashboard (**Dashboard → this script → Edit**) and add one more `@match` line for your own Seerr URL, right below the existing `@match https://isitwokeornot.com/*` line, e.g.:
+4. **Optional, for the Seerr-side Woke Score row only:** open the script in the Tampermonkey dashboard (**Dashboard → this script → Edit**) and replace the placeholder `@match https://seerr.example.com/*` line (right below the fixed isitwokeornot.com one) with your own Seerr URL, e.g.:
    ```
-   // @match        https://seerr.example.com/*
+   // @match        https://seerr.my-domain.com/*
    ```
-   Save (Ctrl+S). See [Why does the Seerr row need an extra `@match` line?](#why-does-the-seerr-row-need-an-extra-match-line) below for why this can't be done automatically. Without this step, everything on isitwokeornot.com still works — only the Woke Score row inside Seerr needs it.
+   Save (Ctrl+S). See [Why does the Seerr row need an extra `@match` line?](#why-does-the-seerr-row-need-an-extra-match-line) below for why this can't be filled in automatically. Without this step, everything on isitwokeornot.com still works — only the Woke Score row inside Seerr needs it.
 
 ## Configuration
 
@@ -79,7 +79,7 @@ To clear the cache immediately, use the Tampermonkey menu command **"🗑️ Cle
 
 ### Why does the Seerr row need an extra `@match` line?
 
-The script declares `@match https://isitwokeornot.com/*` and nothing else — it is **not** injected into every site you visit. The Seerr-side "Woke Score" row is the one exception: it needs to run on your own Seerr instance, but that URL is only known once you've entered it in the settings dialog, and a userscript's `@match` list is fixed metadata that Tampermonkey reads before any of the script's code runs — a script cannot add a domain to its own `@match` list at runtime. Declaring `@match *://*/*` ("run on every page load, and immediately return if it's not one of ours") would side-step that, but means Tampermonkey injects the script into every single tab, which is unnecessary and needlessly broad. Instead, you add the one line yourself (see [Installation](#installation) above) — a one-time, thirty-second edit that keeps the script scoped to only the two sites it actually needs.
+The script declares two `@match` lines: a fixed one for `https://isitwokeornot.com/*`, and a placeholder one for Seerr (`https://seerr.example.com/*`) that you replace with your own Seerr URL. It would be convenient if the second line could just be filled in from the Seerr URL you already enter in the settings dialog — but it can't: a userscript's `@match` list is fixed metadata that Tampermonkey reads *before* any of the script's code runs, while `GM_getValue` (which is how the script reads your saved settings) is only available once the script is already running on a matched page. There's no point at which the script could read its own config to decide where it's allowed to run — that would be the script granting itself access, which userscript managers deliberately don't allow. Declaring `@match *://*/*` ("run on every page load, and immediately return if it's not one of ours") sidesteps that, but means Tampermonkey injects the script into every single tab you open, which is unnecessary and needlessly broad. Instead, you edit that one placeholder line yourself (see [Installation](#installation) above) — a one-time, thirty-second edit that keeps the script scoped to only the two sites it actually needs.
 
 The script's own site check (matching `location.hostname`/`origin` against isitwokeornot.com and your configured Seerr URL) still runs on top of this, so adding a broader Seerr `@match` pattern than necessary (e.g. a wildcard subdomain) is harmless — the script still only activates on the exact origin you configured.
 

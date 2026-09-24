@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
-// @version      2.4.0
+// @version      2.4.1
 // @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the WokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
@@ -12,19 +12,10 @@
 // @grant        GM_addStyle
 // @connect      *
 // @match        https://isitwokeornot.com/*
-//
-// The "Woke Score" row on Seerr only runs on YOUR OWN Seerr instance, whose
-// URL isn't known until you configure it in the settings dialog -- so it
-// can't be declared as a fixed @match above, and this script does NOT run
-// on every site to work around that. To enable the Seerr-side row: open
-// this script in the Tampermonkey editor (Dashboard > this script > Edit)
-// and add one more @match line right below the one above, e.g.:
-//
-//   // @match        https://seerr.example.com/*
-//
-// then save (Ctrl+S). This step is optional -- without it, every button on
-// isitwokeornot.com (Seerr/Radarr/Sonarr) keeps working exactly as before;
-// only the Woke Score row inside Seerr needs it.
+// @match        https://seerr.example.com/*
+// ^ Replace with YOUR Seerr URL to enable the Woke Score row there (can't
+//   be filled in from your saved settings -- Tampermonkey reads @match
+//   before any script code runs). Optional; see README for details.
 // ==/UserScript==
 
 /**
