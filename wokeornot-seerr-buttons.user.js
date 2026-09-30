@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
-// @version      2.4.1
+// @version      2.5.0
 // @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the WokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
@@ -12,10 +12,14 @@
 // @grant        GM_addStyle
 // @connect      *
 // @match        https://isitwokeornot.com/*
-// @match        https://seerr.example.com/*
-// ^ Replace with YOUR Seerr URL to enable the Woke Score row there (can't
-//   be filled in from your saved settings -- Tampermonkey reads @match
-//   before any script code runs). Optional; see README for details.
+// @updateURL    https://raw.githubusercontent.com/Jake-double-one/isitwokeornot-tampermonkey-companion/main/wokeornot-seerr-buttons.user.js
+// @downloadURL  https://raw.githubusercontent.com/Jake-double-one/isitwokeornot-tampermonkey-companion/main/wokeornot-seerr-buttons.user.js
+//
+// To enable the Seerr row for YOUR Seerr URL: Tampermonkey dashboard ->
+// this script -> "Settings" tab -> "User matches" -> add it there, e.g.
+// https://seerr.example.com/* (NOT by editing @match above). User matches
+// live outside the script source, so -- unlike an edit to @match here --
+// they survive the auto-updates @updateURL enables. See README for details.
 // ==/UserScript==
 
 /**
