@@ -88,8 +88,10 @@ This is standard [UTM tracking](https://en.wikipedia.org/wiki/UTM_parameters): i
 
 The script declares `@updateURL`/`@downloadURL` pointing at this repository's `main` branch, so Tampermonkey can check for and install new versions on its own (Dashboard → **Utilities** tab → **"Check for userscript updates"**, or automatically if that setting is enabled). Two things make this safe:
 
-- **Your settings are never at risk.** The Seerr/Radarr/Sonarr URLs, API key, and the Woke Score cache all live in `GM_setValue` storage, which is entirely separate from the script's source code — an update replaces the code, never this storage.
-- **Your Seerr match is never at risk either**, but only because it's added via Tampermonkey's "User matches" (see below) rather than by hand-editing the script — see why below.
+- **Your settings survive updates.** The Seerr/Radarr/Sonarr URLs, API key, and the Woke Score cache all live in `GM_setValue` storage, which is entirely separate from the script's source code — an update replaces the code, never this storage. Always enter them via the ⚙️ settings dialog, never in the script's source.
+- **Your Seerr match survives updates too**, but only because it's added via Tampermonkey's "User matches" (see below) rather than by hand-editing the script — see why below.
+
+> **Upgrading from a version before 2.6.0?** Version 2.6.0 renamed the script from "WokeOrNot ⇄ …" to "IsItWokeOrNot ⇄ …". Tampermonkey identifies a script by its name, so if you installed 2.6.0 or later via the Raw link, it was added as a *new* script with empty settings, next to the old one. Check **"Installierte Userscripts"** for two entries: delete the old "WokeOrNot ⇄ …" one, then re-enter your settings once via ⚙️ and re-add your Seerr URL under the new script's "User matches". This was a one-off; the name won't change again.
 
 ### Why does the Seerr row need an extra match, and why here?
 
