@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IsItWokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
-// @version      2.6.0
+// @version      2.6.1
 // @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the IsItWokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
@@ -477,7 +477,7 @@
         flex-shrink: 0;
       }
       .wsr-btn:hover { filter: brightness(1.15); }
-      .wsr-btn.wsr-loading { opacity: .55; cursor: progress; }
+      .wsr-btn.wsr-loading { cursor: progress; }
       .wsr-btn.wsr-seerr     { background: #7c3aed; }
       .wsr-btn.wsr-arr-movie { background: #ffc230; color: #111; }
       .wsr-btn.wsr-arr-tv    { background: #2e6da4; }
