@@ -3,8 +3,8 @@
 // @namespace    https://local.userscripts/wokeornot-seerr
 // ^ Never change @name or @namespace: Tampermonkey identifies the script
 //   by them, so a change installs it as a new script with empty settings.
-// @version      2.6.1
-// @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the IsItWokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
+// @version      2.7.0
+// @description  On isitwokeornot.com and tastedive.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the IsItWokeOrNot "Woke Score" as its own row on the title page. All share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
 // @grant        GM_getValue
@@ -14,6 +14,7 @@
 // @grant        GM_addStyle
 // @connect      *
 // @match        https://isitwokeornot.com/*
+// @match        https://tastedive.com/*
 // @updateURL    https://raw.githubusercontent.com/Jake-double-one/isitwokeornot-tampermonkey-companion/main/wokeornot-seerr-buttons.user.js
 // @downloadURL  https://raw.githubusercontent.com/Jake-double-one/isitwokeornot-tampermonkey-companion/main/wokeornot-seerr-buttons.user.js
 //
@@ -36,6 +37,7 @@
  * @property {boolean} showOnGridPages     Show hover buttons on card/grid pages
  * @property {boolean} showOnDetailPage    Show action buttons on the title detail page
  * @property {boolean} showWokeScoreOnSeerr Show the "Woke Score" row on the Seerr title page
+ * @property {boolean} showOnTasteDive     Show buttons on TasteDive's movie/show rows
  */
 
 /**
@@ -55,6 +57,7 @@
   const WOKEORNOT_HOST = 'isitwokeornot.com';
   const WOKEORNOT_ORIGIN = `https://${WOKEORNOT_HOST}`;
   const WOKE_TYPE_FOR_MEDIA = { movie: 'MOVIE', tv: 'TV_SHOW' };
+  const TASTEDIVE_HOST = 'tastedive.com';
 
   const STORAGE_KEYS = {
     CONFIG: 'wsrConfig',
@@ -72,7 +75,8 @@
     sonarrUrl: '',
     showOnGridPages: true,
     showOnDetailPage: true,
-    showWokeScoreOnSeerr: true
+    showWokeScoreOnSeerr: true,
+    showOnTasteDive: true
   };
 
   // Overseerr/Jellyseerr media availability status codes (from their public API).
@@ -135,6 +139,10 @@
 
   function isWokeOrNotSite() {
     return location.hostname === WOKEORNOT_HOST;
+  }
+
+  function isTasteDiveSite() {
+    return location.hostname === TASTEDIVE_HOST;
   }
 
   /** @param {ScriptConfig} config */
@@ -405,6 +413,11 @@
           Seerr: show the Woke Score row on the title page
         </label>
 
+        <label class="wsr-checkbox">
+          <input type="checkbox" id="wsr-showTasteDive" ${config.showOnTasteDive ? 'checked' : ''}>
+          TasteDive: show buttons on movie/show rows
+        </label>
+
         <div class="wsr-modal-actions">
           <button type="button" class="wsr-cancel">Cancel</button>
           <button type="button" class="wsr-save">Save</button>
@@ -427,7 +440,8 @@
         sonarrUrl: stripTrailingSlash(field('wsr-sonarrUrl').value),
         showOnDetailPage: field('wsr-showDetail').checked,
         showOnGridPages: field('wsr-showGrid').checked,
-        showWokeScoreOnSeerr: field('wsr-showSeerrRow').checked
+        showWokeScoreOnSeerr: field('wsr-showSeerrRow').checked,
+        showOnTasteDive: field('wsr-showTasteDive').checked
       });
       backdrop.remove();
       showToast('Settings saved – reloading …', 1500);
@@ -438,6 +452,34 @@
   /* =========================================================================
    * 7) WOKEORNOT MODE — STYLES
    * ========================================================================= */
+
+  // Small square buttons used on IsItWokeOrNot cards and TasteDive rows.
+  function injectCardButtonStyles() {
+    GM_addStyle(`
+      .wsr-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, .3);
+        background: rgba(15, 23, 42, .85);
+        color: #fff;
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+        text-decoration: none;
+        flex-shrink: 0;
+      }
+      .wsr-btn:hover { filter: brightness(1.15); }
+      .wsr-btn.wsr-loading { cursor: progress; }
+      .wsr-btn.wsr-seerr     { background: #7c3aed; }
+      .wsr-btn.wsr-arr-movie { background: #ffc230; color: #111; }
+      .wsr-btn.wsr-arr-tv    { background: #2e6da4; }
+    `);
+  }
 
   function injectWokeOrNotStyles() {
     GM_addStyle(`
@@ -461,28 +503,6 @@
         transform: translateY(0);
         pointer-events: auto;
       }
-      .wsr-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, .3);
-        background: rgba(15, 23, 42, .85);
-        color: #fff;
-        font-size: 16px;
-        line-height: 1;
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
-        text-decoration: none;
-        flex-shrink: 0;
-      }
-      .wsr-btn:hover { filter: brightness(1.15); }
-      .wsr-btn.wsr-loading { cursor: progress; }
-      .wsr-btn.wsr-seerr     { background: #7c3aed; }
-      .wsr-btn.wsr-arr-movie { background: #ffc230; color: #111; }
-      .wsr-btn.wsr-arr-tv    { background: #2e6da4; }
 
       /* --- Large action buttons on the detail page --- */
       .wsr-detail-wrap {
@@ -1275,7 +1295,92 @@
   }
 
   /* =========================================================================
-   * 15) SPA NAVIGATION (both WokeOrNot and Seerr are client-routed apps)
+   * 15) TASTEDIVE MODE — buttons on movie/show rows
+   * ========================================================================= */
+
+  const TASTEDIVE_ROW_SELECTOR = 'a[href^="/movies/like/"], a[href^="/shows/like/"]';
+
+  // TasteDive's CSS-module class names carry a build hash (e.g.
+  // "EntityRow-module-scss-module__AhEvEq__title"), so match the stable parts.
+  function tasteDiveRowPart(part) {
+    return `[class*="EntityRow-module"][class*="__${part}"]`;
+  }
+
+  function createLinkButton({ className, label, title, href }) {
+    const btn = createButton({ className: `wsr-btn ${className}`, label, title });
+    btn.addEventListener('click', (event) => {
+      // The button sits inside TasteDive's row link; don't follow that link.
+      event.preventDefault();
+      event.stopPropagation();
+      window.open(href, '_blank', 'noopener');
+    });
+    return btn;
+  }
+
+  /**
+   * TasteDive rows only carry a title and year, no TMDB/IMDb id, so the
+   * buttons open a title search. Only configured services get a button, so
+   * there's never a disabled button inside the row link.
+   */
+  function processTasteDiveRow(link, config) {
+    if (link.dataset.wsrDone) return;
+    const titleEl = link.querySelector(tasteDiveRowPart('title'));
+    if (!titleEl) return; // not an entity row, or not rendered yet
+    link.dataset.wsrDone = '1';
+
+    const mediaType = link.getAttribute('href').startsWith('/movies/') ? 'movie' : 'tv';
+    const isMovie = mediaType === 'movie';
+    const title = titleEl.textContent.trim();
+    const noIds = { tmdbType: null, tmdbId: null, imdbId: null };
+
+    const actions = document.createElement('div');
+    actions.className = 'wsr-td-actions';
+
+    const arrHref = buildArrUrl(config, mediaType, noIds, title);
+    if (arrHref) {
+      actions.append(createLinkButton({
+        className: isMovie ? 'wsr-arr-movie' : 'wsr-arr-tv',
+        label: isMovie ? '🎬' : '📺',
+        title: isMovie ? 'Search in Radarr' : 'Search in Sonarr',
+        href: arrHref
+      }));
+    }
+
+    const seerrHref = buildSeerrUrl(config, mediaType, noIds, title);
+    if (seerrHref) {
+      actions.append(createLinkButton({ className: 'wsr-seerr', label: '🍿', title: 'Search in Seerr', href: seerrHref }));
+    }
+
+    if (actions.children.length === 0) return;
+
+    const chevron = link.querySelector(tasteDiveRowPart('iconContainer'));
+    if (chevron) {
+      chevron.before(actions);
+    } else {
+      (link.querySelector(tasteDiveRowPart('inner')) || link).append(actions);
+    }
+  }
+
+  function refreshTasteDivePage() {
+    const config = getConfig();
+    if (!config.showOnTasteDive) return;
+    document.querySelectorAll(TASTEDIVE_ROW_SELECTOR).forEach((link) => processTasteDiveRow(link, config));
+  }
+
+  function injectTasteDiveStyles() {
+    GM_addStyle(`
+      .wsr-td-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 8px;
+        flex-shrink: 0;
+      }
+    `);
+  }
+
+  /* =========================================================================
+   * 16) SPA NAVIGATION (IsItWokeOrNot, TasteDive and Seerr are client-routed)
    * ========================================================================= */
 
   function patchHistoryForNavigationEvents() {
@@ -1297,17 +1402,20 @@
   }
 
   /* =========================================================================
-   * 16) BOOTSTRAP
+   * 17) BOOTSTRAP
    * ========================================================================= */
 
   function init() {
     const config = getConfig();
     const onWokeOrNot = isWokeOrNotSite();
+    const onTasteDive = isTasteDiveSite();
     const onSeerr = isSeerrSite(config);
-    if (!onWokeOrNot && !onSeerr) return; // unrelated site, do nothing
+    if (!onWokeOrNot && !onTasteDive && !onSeerr) return; // unrelated site, do nothing
 
     injectSharedStyles();
+    if (onWokeOrNot || onTasteDive) injectCardButtonStyles();
     if (onWokeOrNot) injectWokeOrNotStyles();
+    if (onTasteDive) injectTasteDiveStyles();
 
     addFloatingSettingsButton();
     GM_registerMenuCommand('⚙️ Seerr/Radarr/Sonarr settings', openSettingsDialog);
@@ -1327,6 +1435,8 @@
     function refreshCurrentPage() {
       if (onWokeOrNot) {
         refreshWokeOrNotPage();
+      } else if (onTasteDive) {
+        refreshTasteDivePage();
       } else if (getConfig().showWokeScoreOnSeerr) {
         runSeerrWokeScoreRow();
       }

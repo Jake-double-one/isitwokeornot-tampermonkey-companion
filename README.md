@@ -4,8 +4,9 @@ A [Tampermonkey](https://www.tampermonkey.net/) userscript that connects [isitwo
 
 - **On isitwokeornot.com:** buttons to open or request the movie/show you're looking at directly in your Seerr/Radarr/Sonarr instance, without leaving the page.
 - **On your Seerr instance:** a "Woke Score" row on the title page, showing the matching isitwokeornot.com score with a link straight to the full review.
+- **On [TasteDive](https://tastedive.com/):** buttons on movie and show rows to search the title in your Seerr/Radarr/Sonarr instance.
 
-Both sides share a single configuration.
+All of them share a single configuration.
 
 ## Features
 
@@ -25,6 +26,12 @@ Both sides share a single configuration.
 - Results (including "no match found") are cached per title for 7 days, so revisiting or browsing back to a title doesn't re-query isitwokeornot.com every time. A page reload (F5/Ctrl+F5/Cmd+R) always fetches a fresh result for the title shown right after the reload — see [Woke Score caching](#woke-score-caching) below.
 - Clicking the row's link to open the review on isitwokeornot.com adds UTM tracking parameters — see [UTM parameters on the Woke Score link](#utm-parameters-on-the-woke-score-link) below.
 
+### On TasteDive
+
+- 🎬 **Search in Radarr** (movies) / 📺 **Search in Sonarr** (shows) and 🍿 **Search in Seerr** buttons on each movie/show row, e.g. on [tastedive.com/movies](https://tastedive.com/movies) and [tastedive.com/shows](https://tastedive.com/shows), placed right before the row's arrow.
+- TasteDive only shows a title and year, no TMDB/IMDb id, so these buttons open a **title search** rather than the exact title. For titles that share a name (remakes, reboots), pick the right one from the search results.
+- Only services you've configured get a button.
+
 ### Shared
 
 - A settings dialog (gear icon, bottom-right, or via the Tampermonkey menu) to configure your instance URLs and API key — nothing is sent anywhere except the services you configure.
@@ -34,7 +41,7 @@ Both sides share a single configuration.
 
 1. Install a userscript manager, e.g. [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Edge, Safari) or [Violentmonkey](https://violentmonkey.github.io/).
 2. Open [`wokeornot-seerr-buttons.user.js`](./wokeornot-seerr-buttons.user.js) in this repository and click **Raw** — your userscript manager should pick it up and offer to install it. Alternatively, copy the file's contents into a new userscript.
-3. Visit [isitwokeornot.com](https://isitwokeornot.com/) and click the ⚙️ button in the bottom-right corner (or use the Tampermonkey menu) to configure your Seerr/Radarr/Sonarr URLs.
+3. Visit [isitwokeornot.com](https://isitwokeornot.com/) or [tastedive.com](https://tastedive.com/) and click the ⚙️ button in the bottom-right corner (or use the Tampermonkey menu) to configure your Seerr/Radarr/Sonarr URLs.
 4. **Optional, for the Seerr-side Woke Score row only:** in the Tampermonkey dashboard, go to **"Installierte Userscripts"** and click on this script to open **its own page** — **not** the dashboard's global **"Einstellungen"** tab in the main toolbar (that one only has update-check/general options; it has no match fields and isn't specific to this script at all). On this script's own page, find **"User matches"** and add your own Seerr URL there, e.g. `https://seerr.my-domain.com/*`. Do this through "User matches", **not** by editing the `@match` line in the script's source — see [Why does the Seerr row need an extra match, and why here?](#why-does-the-seerr-row-need-an-extra-match-and-why-here) below for why, and for the equivalent step in other userscript managers. Without this step, everything on isitwokeornot.com still works — only the Woke Score row inside Seerr needs it.
 
 ## Configuration
@@ -50,8 +57,9 @@ Open the settings dialog (⚙️ button, or the Tampermonkey menu command "Seerr
 | **IsItWokeOrNot: show buttons on the detail page** | Toggles the large action buttons shown on a title's own page on isitwokeornot.com. |
 | **IsItWokeOrNot: show buttons on overview cards** | Toggles the small buttons next to the Woke Score badge on cards on home/search/browse pages on isitwokeornot.com. |
 | **Seerr: show the Woke Score row** | Toggles the Woke Score row on the title page in Seerr. |
+| **TasteDive: show buttons on movie/show rows** | Toggles the search buttons on TasteDive's movie and show rows. |
 
-Settings are stored locally via Tampermonkey's `GM_setValue`/`GM_getValue` storage and are never transmitted anywhere except to the isitwokeornot.com and Seerr/Radarr/Sonarr URLs involved in each feature.
+Settings are stored locally via Tampermonkey's `GM_setValue`/`GM_getValue` storage and are never transmitted anywhere except to the isitwokeornot.com and Seerr/Radarr/Sonarr URLs involved in each feature. On TasteDive, the script makes no requests at all; it only builds the search links.
 
 > **Note:** Radarr and Sonarr are typically only reachable on your local network or via a reverse proxy/VPN. Make sure the configured URL is reachable from the browser where the userscript runs.
 
@@ -95,25 +103,25 @@ The script declares `@updateURL`/`@downloadURL` pointing at this repository's `m
 
 ### Why does the Seerr row need an extra match, and why here?
 
-The script only declares `@match https://isitwokeornot.com/*` in its source. The Seerr-side "Woke Score" row is the one exception that needs the script to also run on your own Seerr instance — but that URL is only known once you've entered it in the settings dialog, and a userscript's `@match` list is fixed metadata that Tampermonkey reads *before* any of the script's code runs, while `GM_getValue` (how the script reads your saved settings) is only available once the script is already running on a matched page. There's no point at which the script could read its own config to decide where it's allowed to run — that would be the script granting itself access, which userscript managers deliberately don't allow.
+The script only declares `@match` lines for `https://isitwokeornot.com/*` and `https://tastedive.com/*` in its source. The Seerr-side "Woke Score" row is the one exception that needs the script to also run on your own Seerr instance — but that URL is only known once you've entered it in the settings dialog, and a userscript's `@match` list is fixed metadata that Tampermonkey reads *before* any of the script's code runs, while `GM_getValue` (how the script reads your saved settings) is only available once the script is already running on a matched page. There's no point at which the script could read its own config to decide where it's allowed to run — that would be the script granting itself access, which userscript managers deliberately don't allow.
 
 Two ways exist to add that second domain:
 
 1. **Edit `@match` in the script's own source.** This works, but the next auto-update (see above) downloads a fresh copy of the file and overwrites it, silently reverting the edit and quietly disabling the Seerr row again.
 2. **Add it as a "User match" on the script's own page** — Dashboard → **"Installierte Userscripts"** → click this script to open its own page → **"User matches"**. This is the recommended approach, and it's a per-script setting: it is **not** the dashboard's global **"Einstellungen"** tab (that tab is shared across every installed script and has no match fields — easy to land on by mistake, since both are just called "Settings"/"Einstellungen"). User matches are stored in Tampermonkey's own local database, entirely separate from the script's source code, so they're untouched by updates. This is the same reason your saved settings above survive updates too: anything stored outside the script file does, anything inside it doesn't.
 
-Declaring `@match *://*/*` in the source ("run on every page load, and immediately return if it's not one of ours") would sidestep needing a second match at all, but means Tampermonkey injects the script into every single tab you open — unnecessary and needlessly broad for what's actually two specific sites.
+Declaring `@match *://*/*` in the source ("run on every page load, and immediately return if it's not one of ours") would sidestep needing a second match at all, but means Tampermonkey injects the script into every single tab you open — unnecessary and needlessly broad for what's actually three specific sites.
 
-The script's own site check (matching `location.hostname`/`origin` against isitwokeornot.com and your configured Seerr URL) still runs on top of either approach, so adding a broader Seerr match pattern than necessary (e.g. a wildcard subdomain) is harmless — the script still only activates on the exact origin you configured.
+The script's own site check (matching `location.hostname`/`origin` against isitwokeornot.com, tastedive.com and your configured Seerr URL) still runs on top of either approach, so adding a broader Seerr match pattern than necessary (e.g. a wildcard subdomain) is harmless — the script still only activates on the exact origin you configured.
 
 Violentmonkey and other userscript managers offer an equivalent (their own UI for match/include rules kept separate from the script source, outside its editor) — check your manager's documentation for the exact name and location if you're not using Tampermonkey.
 
 ## Compatibility
 
-Targets `isitwokeornot.com` and your configured Seerr instance. The script relies on their current markup (e.g. `data-browse-title-id`, `data-title-detail-link`, Seerr's `.media-ratings`/`.media-fact` layout) and page structure, so future site/app redesigns may require an update.
+Targets `isitwokeornot.com`, `tastedive.com` and your configured Seerr instance. The script relies on their current markup (e.g. `data-browse-title-id`, `data-title-detail-link`, TasteDive's `/movies/like/…` / `/shows/like/…` row links and `EntityRow` classes, Seerr's `.media-ratings`/`.media-fact` layout) and page structure, so future site/app redesigns may require an update.
 
 ## License
 
 Released under the [MIT License](./LICENSE). This script has no third-party dependencies; it only uses the standard Tampermonkey/Greasemonkey `GM_*` APIs (`GM_getValue`, `GM_setValue`, `GM_registerMenuCommand`, `GM_xmlhttpRequest`, `GM_addStyle`) provided by the userscript manager. The embedded icon is the isitwokeornot.com logo, used solely to label the Woke Score row it displays inside Seerr.
 
-isitwokeornot.com, Seerr/Overseerr/Jellyseerr, Radarr, and Sonarr are trademarks of their respective owners. This project is an independent, unofficial companion script and is not affiliated with any of them.
+isitwokeornot.com, TasteDive, Seerr/Overseerr/Jellyseerr, Radarr, and Sonarr are trademarks of their respective owners. This project is an independent, unofficial companion script and is not affiliated with any of them.
