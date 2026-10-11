@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         WokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
+// @name         IsItWokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
-// @version      2.5.1
-// @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the WokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
+// @version      2.6.0
+// @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the IsItWokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
 // @grant        GM_getValue
@@ -86,6 +86,7 @@
   const SELECTORS = {
     CARD: '[data-browse-title-id]',
     CARD_LINK: 'a[data-title-detail-link]',
+    CARD_SCORE_BADGE: '[aria-label^="Woke score"]',
     DETAIL_WRAP: '.wsr-detail-wrap',
     SCORE_ROW: 'a[data-wsr-score-row]'
   };
@@ -94,7 +95,7 @@
   const DEBUG = false;
 
   function log(...args) {
-    if (DEBUG) console.log('[WokeOrNot]', ...args);
+    if (DEBUG) console.log('[IsItWokeOrNot]', ...args);
   }
 
   /* =========================================================================
@@ -368,7 +369,7 @@
         <div class="wsr-field">
           <label for="wsr-seerrUrl">Seerr URL (Overseerr/Jellyseerr)</label>
           <input type="text" id="wsr-seerrUrl" placeholder="https://seerr.example.com" value="${config.seerrUrl}">
-          <small>No trailing slash, e.g. https://seerr.example.com. Used both for the WokeOrNot buttons and to detect your Seerr instance for the Woke Score row.</small>
+          <small>No trailing slash, e.g. https://seerr.example.com. Used both for the IsItWokeOrNot buttons and to detect your Seerr instance for the Woke Score row.</small>
         </div>
 
         <div class="wsr-field">
@@ -389,12 +390,12 @@
 
         <label class="wsr-checkbox">
           <input type="checkbox" id="wsr-showDetail" ${config.showOnDetailPage ? 'checked' : ''}>
-          WokeOrNot: show buttons on the title detail page
+          IsItWokeOrNot: show buttons on the title detail page
         </label>
 
         <label class="wsr-checkbox">
           <input type="checkbox" id="wsr-showGrid" ${config.showOnGridPages ? 'checked' : ''}>
-          WokeOrNot: show hover buttons on overview pages (home, search, newly reviewed, people)
+          IsItWokeOrNot: show buttons on overview cards (home, search, newly reviewed, people)
         </label>
 
         <label class="wsr-checkbox">
@@ -438,7 +439,7 @@
 
   function injectWokeOrNotStyles() {
     GM_addStyle(`
-      /* --- Hover overlay on cards (home, search, newly reviewed, people, ...) --- */
+      /* --- Fallback hover overlay for cards without a score badge --- */
       ${SELECTORS.CARD} { position: relative; }
       .wsr-overlay {
         position: absolute;
@@ -473,6 +474,7 @@
         cursor: pointer;
         box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
         text-decoration: none;
+        flex-shrink: 0;
       }
       .wsr-btn:hover { filter: brightness(1.15); }
       .wsr-btn.wsr-loading { opacity: .55; cursor: progress; }
@@ -862,10 +864,18 @@
       getHref: () => resolvedSeerrHref
     });
 
-    const overlay = document.createElement('div');
-    overlay.className = 'wsr-overlay';
-    overlay.append(arrBtn, seerrBtn);
-    card.appendChild(overlay);
+    // Sit in the site's own badge row (score + watchlist star), so the
+    // buttons line up with them; fall back to a corner overlay if a card
+    // has no score badge.
+    const badgeRow = card.querySelector(SELECTORS.CARD_SCORE_BADGE)?.parentElement;
+    if (badgeRow) {
+      badgeRow.append(arrBtn, seerrBtn);
+    } else {
+      const overlay = document.createElement('div');
+      overlay.className = 'wsr-overlay';
+      overlay.append(arrBtn, seerrBtn);
+      card.appendChild(overlay);
+    }
 
     let hasResolved = false;
     async function resolveAndActivate() {
@@ -907,7 +917,7 @@
     const banner = document.createElement('div');
     banner.className = 'wsr-banner';
     banner.innerHTML = `
-      <span>🔌 Connect WokeOrNot to your own Seerr / Radarr / Sonarr setup.</span>
+      <span>🔌 Connect IsItWokeOrNot to your own Seerr / Radarr / Sonarr setup.</span>
       <button type="button" class="wsr-link">Set up now</button>
       <button type="button" class="wsr-close" aria-label="Dismiss">×</button>
     `;
