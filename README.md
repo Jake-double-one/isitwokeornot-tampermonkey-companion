@@ -14,14 +14,14 @@ Both sides share a single configuration.
 - 🍿 **Open in Seerr** — deep-links to the title in your Seerr instance (falls back to a text search if no TMDB id is found).
 - 🎬 **Search in Radarr** / 📺 **Search in Sonarr** — opens the "Add new" page pre-filled with the title.
 - ⚡ **Request in Seerr now** — with a Seerr API key configured, request the title with a single click, right from isitwokeornot.com. The button first checks whether it's already available or requested, so you don't send duplicate requests.
-- Hover buttons on grid/overview pages (home, search, "newly reviewed", people) and larger action buttons on the title detail page.
+- Small buttons on title cards on grid/overview pages (home, search, "newly reviewed", people), placed in the same row as the card's Woke Score badge and watchlist star, plus larger action buttons on the title detail page.
 - Works with isitwokeornot.com's client-side (Next.js) navigation, so buttons stay in sync as you browse without full page reloads.
 
 ### On your Seerr instance
 
 - Adds a **Woke Score** row next to the other ratings (TMDB, IMDb, Rotten Tomatoes, …) on a title's page, showing the isitwokeornot.com score and linking to the matching review.
 - Looks the title up on isitwokeornot.com using its original title first (falling back to Seerr's display title), and cross-checks the IMDb id when available, so localized/translated titles in Seerr still resolve to the correct review instead of a false match.
-- Colour-coded using WokeOrNot's own 5-tier scale, matching their site: 0–19% Not woke (green), 20–39% Slightly woke (lime), 40–59% Woke (amber), 60–79% Very woke (orange), 80–100% Super woke (rose).
+- Colour-coded using IsItWokeOrNot's own 5-tier scale, matching their site: 0–19% Not woke (green), 20–39% Slightly woke (lime), 40–59% Woke (amber), 60–79% Very woke (orange), 80–100% Super woke (rose).
 - Results (including "no match found") are cached per title for 7 days, so revisiting or browsing back to a title doesn't re-query isitwokeornot.com every time. A page reload (F5/Ctrl+F5/Cmd+R) always fetches a fresh result for the title shown right after the reload — see [Woke Score caching](#woke-score-caching) below.
 - Clicking the row's link to open the review on isitwokeornot.com adds UTM tracking parameters — see [UTM parameters on the Woke Score link](#utm-parameters-on-the-woke-score-link) below.
 
@@ -47,8 +47,8 @@ Open the settings dialog (⚙️ button, or the Tampermonkey menu command "Seerr
 | **Seerr API key** | Optional. Found in Seerr under *Settings → General*. Enables the "Request in Seerr now" one-click button. Without it, the "Open in Seerr" button still works and opens the title in the Seerr web UI. |
 | **Radarr URL** | Base URL of your Radarr instance, e.g. `http://192.168.1.10:7878`. |
 | **Sonarr URL** | Base URL of your Sonarr instance, e.g. `http://192.168.1.10:8989`. |
-| **WokeOrNot: show buttons on the detail page** | Toggles the large action buttons shown on a title's own page on isitwokeornot.com. |
-| **WokeOrNot: show hover buttons on overview pages** | Toggles the small hover buttons on cards on home/search/browse pages on isitwokeornot.com. |
+| **IsItWokeOrNot: show buttons on the detail page** | Toggles the large action buttons shown on a title's own page on isitwokeornot.com. |
+| **IsItWokeOrNot: show buttons on overview cards** | Toggles the small buttons next to the Woke Score badge on cards on home/search/browse pages on isitwokeornot.com. |
 | **Seerr: show the Woke Score row** | Toggles the Woke Score row on the title page in Seerr. |
 
 Settings are stored locally via Tampermonkey's `GM_setValue`/`GM_getValue` storage and are never transmitted anywhere except to the isitwokeornot.com and Seerr/Radarr/Sonarr URLs involved in each feature.
