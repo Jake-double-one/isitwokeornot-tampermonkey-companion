@@ -1,6 +1,8 @@
 // ==UserScript==
 // @name         IsItWokeOrNot ⇄ Seerr / Radarr / Sonarr Integration
 // @namespace    https://local.userscripts/wokeornot-seerr
+// ^ Never change @name or @namespace: Tampermonkey identifies the script
+//   by them, so a change installs it as a new script with empty settings.
 // @version      2.6.1
 // @description  On isitwokeornot.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the IsItWokeOrNot "Woke Score" as its own row on the title page. Both share one configuration.
 // @author       Jake-double-one
