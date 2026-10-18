@@ -3,7 +3,7 @@
 // @namespace    https://local.userscripts/wokeornot-seerr
 // ^ Never change @name or @namespace: Tampermonkey identifies the script
 //   by them, so a change installs it as a new script with empty settings.
-// @version      2.7.0
+// @version      2.8.0
 // @description  On isitwokeornot.com and tastedive.com: buttons to open/request a title in your own Seerr (Overseerr/Jellyseerr), Radarr or Sonarr. On your Seerr instance: shows the IsItWokeOrNot "Woke Score" as its own row on the title page. All share one configuration.
 // @author       Jake-double-one
 // @run-at       document-idle
@@ -231,6 +231,82 @@
   }
 
   /* =========================================================================
+   * 4b) SERVICE LOGOS (loaded from the user's own Seerr/Radarr/Sonarr)
+   * ========================================================================= */
+
+  const SERVICE_URL_KEY = { seerr: 'seerrUrl', radarr: 'radarrUrl', sonarr: 'sonarrUrl' };
+
+  // Tried in order; "icon" is square, "full" is Seerr's logo with its name.
+  const LOGO_PATHS = {
+    seerr: { icon: ['/os_icon.svg', '/apple-touch-icon.png'], full: ['/logo_full.svg'] },
+    radarr: { icon: ['/Content/Images/logo.svg'] },
+    sonarr: { icon: ['/Content/Images/logo.svg'] }
+  };
+
+  const logoRequests = new Map();
+
+  function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
+  }
+
+  /**
+   * Fetched via GM_xmlhttpRequest and inlined as a data: URL rather than used
+   * as a plain <img src>: the page is https, while Radarr/Sonarr often run on
+   * plain http in the LAN, which the browser would block as mixed content.
+   * Resolves to null for anything that isn't an image (e.g. a login page).
+   */
+  function fetchImageAsDataUrl(url) {
+    if (!logoRequests.has(url)) {
+      const request = gmRequest({ method: 'GET', url, responseType: 'arraybuffer', timeout: 8000 })
+        .then((res) => {
+          const type = ((res.responseHeaders || '').match(/^content-type:\s*([^;\r\n]+)/im)?.[1] || '').trim().toLowerCase();
+          if (res.status !== 200 || !type.startsWith('image/') || !res.response) return null;
+          return `data:${type};base64,${arrayBufferToBase64(res.response)}`;
+        })
+        .catch(() => null);
+      logoRequests.set(url, request);
+    }
+    return logoRequests.get(url);
+  }
+
+  async function loadServiceLogo(service, variant) {
+    const base = stripTrailingSlash(getConfig()[SERVICE_URL_KEY[service]]);
+    if (!base) return null;
+    for (const path of LOGO_PATHS[service][variant] || []) {
+      const dataUrl = await fetchImageAsDataUrl(base + path);
+      if (dataUrl) return dataUrl;
+    }
+    return null;
+  }
+
+  /**
+   * Replaces a button's emoji with the service's own logo once it has loaded.
+   * "icon" swaps only the `.wsr-ico` part (or the whole content of an
+   * icon-only button); "full" replaces the whole content, since Seerr's full
+   * logo already contains its name. If the logo can't be loaded, or the
+   * page's CSP blocks data: images, the emoji simply stays.
+   */
+  function useServiceLogo(btn, service, variant = 'icon') {
+    loadServiceLogo(service, variant).then((src) => {
+      if (!src) return;
+      const img = document.createElement('img');
+      img.alt = '';
+      img.className = variant === 'full' ? 'wsr-logo-full' : 'wsr-logo';
+      img.addEventListener('load', () => {
+        const emoji = variant === 'full' ? null : btn.querySelector('.wsr-ico');
+        if (emoji) emoji.replaceWith(img); else btn.replaceChildren(img);
+        btn.classList.add('wsr-has-logo');
+      }, { once: true });
+      img.src = src;
+    });
+  }
+
+  /* =========================================================================
    * 5) SHARED STYLES (settings dialog, toast, floating button, setup banner)
    * ========================================================================= */
 
@@ -405,7 +481,7 @@
 
         <label class="wsr-checkbox">
           <input type="checkbox" id="wsr-showGrid" ${config.showOnGridPages ? 'checked' : ''}>
-          IsItWokeOrNot: show buttons on overview cards (home, search, newly reviewed, people)
+          IsItWokeOrNot: show buttons on overview cards and list entries (home, search, lists, people)
         </label>
 
         <label class="wsr-checkbox">
@@ -478,11 +554,66 @@
       .wsr-btn.wsr-seerr     { background: #7c3aed; }
       .wsr-btn.wsr-arr-movie { background: #ffc230; color: #111; }
       .wsr-btn.wsr-arr-tv    { background: #2e6da4; }
+      /* The original logos are made for dark backgrounds (like the apps' own UI). */
+      .wsr-btn.wsr-has-logo  { background: #111827; }
+      .wsr-logo { width: 20px; height: 20px; object-fit: contain; display: block; }
+
+      /* --- Full-width buttons with logo + name (list entries) --- */
+      .wsr-wide-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 32px;
+        padding: 6px 10px;
+        border: none;
+        border-radius: 8px;
+        background: #111827;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1;
+        text-align: left;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+      }
+      .wsr-wide-btn:hover { filter: brightness(1.25); }
+      .wsr-wide-btn .wsr-ico { width: 18px; text-align: center; font-size: 15px; }
+      .wsr-wide-btn .wsr-logo { width: 18px; height: 18px; }
+      .wsr-logo-full { display: block; height: 18px; width: auto; max-width: 100%; }
     `);
   }
 
   function injectWokeOrNotStyles() {
     GM_addStyle(`
+      /* --- Buttons under the poster in list entries ---
+         The buttons are inserted next to the poster (moving React's own nodes
+         would break its re-renders), and the row is turned into a grid so
+         they end up in the poster's column, below it. */
+      li > div:has(> .wsr-list-actions) {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+        column-gap: 1.5rem;
+        row-gap: .75rem;
+      }
+      li > div:has(> .wsr-list-actions) > :first-child { grid-column: 1; grid-row: 1; }
+      li > div:has(> .wsr-list-actions) > .wsr-list-actions { grid-column: 1; grid-row: 2; }
+      li > div:has(> .wsr-list-actions) > :last-child { grid-column: 2; grid-row: 1 / span 2; }
+      .wsr-list-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        max-width: 9rem;
+        align-self: start;
+      }
+      @media (max-width: 639px) {
+        li > div:has(> .wsr-list-actions) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+        li > div:has(> .wsr-list-actions) > * { grid-column: 1 !important; grid-row: auto !important; }
+        .wsr-list-actions { max-width: 8rem; } /* the poster's width below the sm breakpoint */
+      }
+
       /* --- Fallback hover overlay for cards without a score badge --- */
       ${SELECTORS.CARD} { position: relative; }
       .wsr-overlay {
@@ -886,6 +1017,9 @@
       getHref: () => resolvedSeerrHref
     });
 
+    useServiceLogo(arrBtn, isMovie ? 'radarr' : 'sonarr');
+    useServiceLogo(seerrBtn, 'seerr');
+
     // Sit in the site's own badge row (score + watchlist star), so the
     // buttons line up with them; fall back to a corner overlay if a card
     // has no score badge.
@@ -926,6 +1060,78 @@
     document.querySelectorAll(SELECTORS.CARD).forEach(processCard);
   }
 
+  /* --- List entries (ranked lists: poster + title, no link to the title) --- */
+
+  function createWideLinkButton({ service, emoji, name, title, href }) {
+    const btn = createButton({ className: 'wsr-wide-btn', label: '', title });
+    const icon = document.createElement('span');
+    icon.className = 'wsr-ico';
+    icon.textContent = emoji;
+    const text = document.createElement('span');
+    text.textContent = name;
+    btn.append(icon, text);
+    openInNewTabOnClick(btn, href);
+    // Seerr's full logo already contains its name, so it replaces the text too.
+    useServiceLogo(btn, service, service === 'seerr' ? 'full' : 'icon');
+    return btn;
+  }
+
+  /**
+   * List entries don't say whether they're a movie or a show. Use a link to
+   * the title if there is one, else the page's path (e.g. ".../movies"), and
+   * offer both Radarr and Sonarr if that's inconclusive.
+   */
+  function listEntryMediaTypes(entry) {
+    const link = entry.querySelector('a[href^="/movie/"], a[href^="/tv/"]');
+    if (link) return [mediaTypeFromPath(link.getAttribute('href'))];
+    const path = location.pathname.toLowerCase();
+    if (/movie|film/.test(path)) return ['movie'];
+    if (/\btv\b|show|series/.test(path)) return ['tv'];
+    return ['movie', 'tv'];
+  }
+
+  function processListEntry(entry, config) {
+    if (entry.dataset.wsrDone) return;
+    const row = entry.firstElementChild;
+    const poster = row?.firstElementChild;
+    const heading = entry.querySelector('h3');
+    if (!poster || row.children.length < 2 || !heading || !poster.querySelector('img[alt$=" poster"]')) return;
+    entry.dataset.wsrDone = '1';
+
+    const title = cleanTitle(heading.textContent.trim());
+    const noIds = { tmdbType: null, tmdbId: null, imdbId: null };
+    const actions = document.createElement('div');
+    actions.className = 'wsr-list-actions';
+
+    for (const mediaType of listEntryMediaTypes(entry)) {
+      const isMovie = mediaType === 'movie';
+      const href = buildArrUrl(config, mediaType, noIds, title);
+      if (!href) continue;
+      const name = isMovie ? 'Radarr' : 'Sonarr';
+      actions.append(createWideLinkButton({
+        service: isMovie ? 'radarr' : 'sonarr',
+        emoji: isMovie ? '🎬' : '📺',
+        name,
+        title: `Search in ${name}`,
+        href
+      }));
+    }
+
+    const seerrHref = buildSeerrUrl(config, 'movie', noIds, title);
+    if (seerrHref) {
+      actions.append(createWideLinkButton({ service: 'seerr', emoji: '🍿', name: 'Seerr', title: 'Search in Seerr', href: seerrHref }));
+    }
+
+    if (actions.children.length === 0) return;
+    poster.after(actions);
+  }
+
+  function processListEntries() {
+    const config = getConfig();
+    if (!config.showOnGridPages) return;
+    document.querySelectorAll('li').forEach((entry) => processListEntry(entry, config));
+  }
+
   /* =========================================================================
    * 13) WOKEORNOT MODE — SETUP BANNER
    * ========================================================================= */
@@ -961,6 +1167,7 @@
       injectDetailPageButtons();
     }
     processVisibleCards();
+    processListEntries();
     maybeShowSetupBanner();
   }
 
@@ -1306,14 +1513,19 @@
     return `[class*="EntityRow-module"][class*="__${part}"]`;
   }
 
-  function createLinkButton({ className, label, title, href }) {
-    const btn = createButton({ className: `wsr-btn ${className}`, label, title });
+  function openInNewTabOnClick(btn, href) {
     btn.addEventListener('click', (event) => {
-      // The button sits inside TasteDive's row link; don't follow that link.
+      // Buttons may sit inside a link of the site (e.g. TasteDive's rows);
+      // don't follow that link.
       event.preventDefault();
       event.stopPropagation();
       window.open(href, '_blank', 'noopener');
     });
+  }
+
+  function createLinkButton({ className, label, title, href }) {
+    const btn = createButton({ className: `wsr-btn ${className}`, label, title });
+    openInNewTabOnClick(btn, href);
     return btn;
   }
 
@@ -1338,17 +1550,21 @@
 
     const arrHref = buildArrUrl(config, mediaType, noIds, title);
     if (arrHref) {
-      actions.append(createLinkButton({
+      const arrBtn = createLinkButton({
         className: isMovie ? 'wsr-arr-movie' : 'wsr-arr-tv',
         label: isMovie ? '🎬' : '📺',
         title: isMovie ? 'Search in Radarr' : 'Search in Sonarr',
         href: arrHref
-      }));
+      });
+      useServiceLogo(arrBtn, isMovie ? 'radarr' : 'sonarr');
+      actions.append(arrBtn);
     }
 
     const seerrHref = buildSeerrUrl(config, mediaType, noIds, title);
     if (seerrHref) {
-      actions.append(createLinkButton({ className: 'wsr-seerr', label: '🍿', title: 'Search in Seerr', href: seerrHref }));
+      const seerrBtn = createLinkButton({ className: 'wsr-seerr', label: '🍿', title: 'Search in Seerr', href: seerrHref });
+      useServiceLogo(seerrBtn, 'seerr');
+      actions.append(seerrBtn);
     }
 
     if (actions.children.length === 0) return;

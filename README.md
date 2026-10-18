@@ -16,6 +16,8 @@ All of them share a single configuration.
 - 🎬 **Search in Radarr** / 📺 **Search in Sonarr** — opens the "Add new" page pre-filled with the title.
 - ⚡ **Request in Seerr now** — with a Seerr API key configured, request the title with a single click, right from isitwokeornot.com. The button first checks whether it's already available or requested, so you don't send duplicate requests.
 - Small buttons on title cards on grid/overview pages (home, search, "newly reviewed", people), placed in the same row as the card's Woke Score badge and watchlist star, plus larger action buttons on the title detail page.
+- On ranked lists (entries with a poster, title and "Best for" text), a column of buttons below each poster, each with the service's logo and name. These entries have no link to the title, so the buttons open a title search; whether to offer Radarr or Sonarr is taken from the page's address (e.g. `…movies…`), and both are shown if that's unclear.
+- Buttons show the **original logos** of your own Seerr, Radarr and Sonarr — see [Service logos](#service-logos) below.
 - Works with isitwokeornot.com's client-side (Next.js) navigation, so buttons stay in sync as you browse without full page reloads.
 
 ### On your Seerr instance
@@ -55,11 +57,11 @@ Open the settings dialog (⚙️ button, or the Tampermonkey menu command "Seerr
 | **Radarr URL** | Base URL of your Radarr instance, e.g. `http://192.168.1.10:7878`. |
 | **Sonarr URL** | Base URL of your Sonarr instance, e.g. `http://192.168.1.10:8989`. |
 | **IsItWokeOrNot: show buttons on the detail page** | Toggles the large action buttons shown on a title's own page on isitwokeornot.com. |
-| **IsItWokeOrNot: show buttons on overview cards** | Toggles the small buttons next to the Woke Score badge on cards on home/search/browse pages on isitwokeornot.com. |
+| **IsItWokeOrNot: show buttons on overview cards and list entries** | Toggles the small buttons next to the Woke Score badge on cards, and the buttons below the poster in ranked lists, on isitwokeornot.com. |
 | **Seerr: show the Woke Score row** | Toggles the Woke Score row on the title page in Seerr. |
 | **TasteDive: show buttons on movie/show rows** | Toggles the search buttons on TasteDive's movie and show rows. |
 
-Settings are stored locally via Tampermonkey's `GM_setValue`/`GM_getValue` storage and are never transmitted anywhere except to the isitwokeornot.com and Seerr/Radarr/Sonarr URLs involved in each feature. On TasteDive, the script makes no requests at all; it only builds the search links.
+Settings are stored locally via Tampermonkey's `GM_setValue`/`GM_getValue` storage and are never transmitted anywhere except to the isitwokeornot.com and Seerr/Radarr/Sonarr URLs involved in each feature. On TasteDive, the only requests the script makes are for the logos from your own instances (see [Service logos](#service-logos)); the buttons themselves are just search links.
 
 > **Note:** Radarr and Sonarr are typically only reachable on your local network or via a reverse proxy/VPN. Make sure the configured URL is reachable from the browser where the userscript runs.
 
@@ -73,6 +75,17 @@ Settings are stored locally via Tampermonkey's `GM_setValue`/`GM_getValue` stora
 **On your Seerr instance:**
 - The title's TMDB id is read straight from Seerr's own URL, then its original title, display title, and IMDb id are fetched from Seerr's local API (using your existing, already-authenticated browser session — no separate credentials needed).
 - The script searches isitwokeornot.com for each title candidate (original title first) until it finds a result whose IMDb id matches (when known), then extracts the score from that page and renders the Woke Score row.
+
+### Service logos
+
+The buttons show each service's original logo, loaded from **your own** instance — so you see exactly what your installation uses (Overseerr, Jellyseerr or Seerr):
+
+| Service | Small square buttons | Buttons with a name (list entries) |
+| --- | --- | --- |
+| Seerr | `/os_icon.svg`, else `/apple-touch-icon.png` | `/logo_full.svg` (already contains the name) |
+| Radarr / Sonarr | `/Content/Images/logo.svg` | `/Content/Images/logo.svg` + name |
+
+The logos are fetched through Tampermonkey (`GM_xmlhttpRequest`) and embedded as `data:` images, because isitwokeornot.com and TasteDive run on https while Radarr/Sonarr often run on plain http in your LAN, which the browser would otherwise block as mixed content. Each logo is fetched at most once per page load. If a logo can't be loaded — the instance is unreachable, the path doesn't exist in your version, or a login page comes back instead of an image — the button keeps its emoji (🍿, 🎬, 📺).
 
 ### Woke Score caching
 
@@ -118,7 +131,7 @@ Violentmonkey and other userscript managers offer an equivalent (their own UI fo
 
 ## Compatibility
 
-Targets `isitwokeornot.com`, `tastedive.com` and your configured Seerr instance. The script relies on their current markup (e.g. `data-browse-title-id`, `data-title-detail-link`, TasteDive's `/movies/like/…` / `/shows/like/…` row links and `EntityRow` classes, Seerr's `.media-ratings`/`.media-fact` layout) and page structure, so future site/app redesigns may require an update.
+Targets `isitwokeornot.com`, `tastedive.com` and your configured Seerr instance. The script relies on their current markup (e.g. `data-browse-title-id`, `data-title-detail-link`, the ranked-list entries' `li` layout with an `img[alt$=" poster"]` and `h3`, TasteDive's `/movies/like/…` / `/shows/like/…` row links and `EntityRow` classes, Seerr's `.media-ratings`/`.media-fact` layout) and page structure, so future site/app redesigns may require an update.
 
 ## License
 

@@ -15,3 +15,8 @@ The first version adds search buttons to the movie/show rows (overview pages and
 - Buttons for the main title on a `/movies/like/…` or `/shows/like/…` page itself, not just the rows listed on it.
 - Exact deep links instead of a title search: TasteDive has no TMDB id, but with a Seerr API key we could look the title (plus year) up via Seerr's search API and link straight to the title.
 - Show the IsItWokeOrNot Woke Score on TasteDive rows, reusing the Seerr-side lookup and cache.
+
+## IsItWokeOrNot follow-ups
+
+- Use the original service logos on the detail page's large buttons too (they still show 🍿/🎬/📺 next to their text).
+- Exact links for ranked-list entries: they have no link to the title, but the title (plus year) could be looked up via IsItWokeOrNot's own search or Seerr's search API to get the TMDB id and the right movie/show type.
